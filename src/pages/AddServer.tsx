@@ -1,0 +1,463 @@
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Header } from "@/components/Header";
+import { CATEGORIES, CATEGORY_ICONS, ServerCategory } from "@/lib/types";
+import { useCreateServer } from "@/hooks/queries/useServers";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { ArrowLeft, Loader2, Lock, User, ShieldCheck, Bot, RefreshCw, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+interface Guild {
+  id: string;
+  name: string;
+  icon: string | null;
+  permissions: string;
+  has_bot: boolean;
+  is_registered?: boolean;
+}
+
+const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || "1470645542014160999";
+const BOT_PERMISSIONS = "11265"; // Create Instant Invite (1) + View Channels (1024) + Manage Messages (8192) + Send Messages (2048)
+
+export default function AddServer() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user, loading: authLoading, apiUrl, getHeaders } = useAuth();
+  const createServerMutation = useCreateServer();
+
+  // Guild Selection State
+  const [guilds, setGuilds] = useState<Guild[]>([]);
+  const [loadingGuilds, setLoadingGuilds] = useState(true);
+  const [selectedGuildId, setSelectedGuildId] = useState<string>("");
+
+  // Form State
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState<ServerCategory>("Competitivo");
+  const [iconEmoji, setIconEmoji] = useState("🔥");
+  const [tagsInput, setTagsInput] = useState("");
+  const [bannerUrl, setBannerUrl] = useState("");
+  const [minBetValue, setMinBetValue] = useState<string>("");
+  const [customRoomValue, setCustomRoomValue] = useState<string>("");
+
+  const selectedGuild = guilds.find(g => g.id === selectedGuildId);
+
+  // Auto-select category from URL param
+  useEffect(() => {
+    const categoryParam = searchParams.get("category") as ServerCategory;
+    if (categoryParam && CATEGORIES.includes(categoryParam)) {
+      setCategory(categoryParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      // Redirect handled by component rendering logic
+      return;
+    }
+
+    if (user) {
+      const forceRefresh = searchParams.get("refresh") === "true";
+      fetchGuilds(forceRefresh);
+    }
+  }, [user, authLoading, searchParams]);
+
+  // Auto-select guild from URL param
+  useEffect(() => {
+    const guildIdParam = searchParams.get("guild_id");
+    if (guildIdParam && guilds.length > 0) {
+      const exists = guilds.find(g => g.id === guildIdParam);
+      if (exists) {
+        setSelectedGuildId(guildIdParam);
+      }
+    }
+  }, [guilds, searchParams]);
+
+  const fetchGuilds = async (force = false) => {
+    setLoadingGuilds(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const url = force ? `${apiUrl}/user/guilds?refresh=true` : `${apiUrl}/user/guilds`;
+      
+      const res = await fetch(url, {
+        headers: getHeaders(token)
+      });
+
+      if (res.status === 429) {
+        // Silently handle rate limit without throwing or showing toast
+        return;
+      }
+
+      if (!res.ok) throw new Error("Falha ao buscar servidores");
+
+      const data = await res.json();
+      setGuilds(data);
+    } catch (error: any) {
+      // Don't log or toast 429 errors
+      if (error.message !== "Muitas requisições ao Discord. Aguarde alguns instantes.") {
+        console.error(error);
+        toast.error("Erro ao carregar seus servidores do Discord.");
+      }
+    } finally {
+      setLoadingGuilds(false);
+    }
+  };
+
+  const handleAddBot = () => {
+    if (!selectedGuild) return;
+    
+    const state = `refresh_guilds:${selectedGuild.id}`;
+    
+    // Use our backend to initiate the OAuth flow securely
+    const url = `${apiUrl}/auth/discord?state=${state}&guild_id=${selectedGuild.id}&permissions=${BOT_PERMISSIONS}&disable_guild_select=true`;
+    
+    window.location.href = url;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGuild) {
+       toast.error("Selecione um servidor!");
+       return;
+    }
+    if (!description.trim()) {
+      toast.error("Preencha a descrição!");
+      return;
+    }
+
+    if (!user) {
+      toast.error("Você precisa estar logado para enviar um servidor.");
+      return;
+    }
+
+    const tags = tagsInput
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    createServerMutation.mutate(
+      {
+        name: selectedGuild.name,
+        description: description.trim(),
+        category: category as ServerCategory,
+        inviteLink: "", // Auto-generated by backend
+        iconEmoji,
+        bannerUrl: bannerUrl.trim() || undefined,
+        tags,
+        autoInvite: true,
+        guildId: selectedGuild.id,
+        min_bet_value: minBetValue ? parseFloat(minBetValue) : undefined,
+        custom_room_value: customRoomValue ? parseFloat(customRoomValue) : undefined,
+      },
+      {
+        onSuccess: (newServer) => {
+          toast.success("Servidor enviado para análise!", { duration: 5000 });
+          navigate(`/server/${newServer.guild_id}`);
+        },
+        onError: (error) => {
+          console.error(error);
+          toast.error(error.message || "Erro ao enviar servidor. Tente novamente.", { duration: 5000 });
+        },
+      }
+    );
+  };
+
+  const inputClass =
+    "w-full rounded-xl border border-border bg-card py-3 px-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all";
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="flex justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </main>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="mx-auto max-w-2xl px-4 py-12 text-center">
+          <div className="rounded-2xl border border-border bg-card p-12">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
+              <Lock className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">Login Necessário</h1>
+            <p className="mt-2 text-muted-foreground mb-8">
+              Você precisa estar logado com o Discord para enviar um servidor.
+            </p>
+            <a 
+              href={`${apiUrl}/auth/discord`}
+              className="inline-flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-8 py-6 text-lg rounded-xl transition-colors font-semibold"
+            >
+              <User className="h-5 w-5" />
+              <span>Entrar com Discord</span>
+            </a>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="mx-auto max-w-2xl px-4 py-12">
+        <button
+          onClick={() => navigate("/")}
+          className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
+        </button>
+
+        <h1 className="text-3xl font-bold text-foreground">Adicionar Servidor</h1>
+        <p className="mt-2 text-muted-foreground">
+          Selecione seu servidor e preencha as informações para listá-lo.
+        </p>
+
+        <div className="mt-8 space-y-6">
+          {/* Step 1: Select Server */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Escolha o Servidor</label>
+            <div className="flex gap-2">
+                <Select value={selectedGuildId} onValueChange={setSelectedGuildId} disabled={loadingGuilds}>
+                <SelectTrigger className="w-full h-12 text-base">
+                    <SelectValue placeholder={loadingGuilds ? "Carregando servidores..." : "Selecione um servidor..."} />
+                </SelectTrigger>
+                <SelectContent className="max-w-[calc(100vw-2rem)]">
+                    {guilds.map((guild) => (
+                    <SelectItem key={guild.id} value={guild.id} className="max-w-full overflow-hidden">
+                        <div className="flex items-center gap-2 max-w-full overflow-hidden">
+                        {guild.icon ? (
+                            <img 
+                            src={`https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`} 
+                            alt={guild.name}
+                            className="w-6 h-6 rounded-full shrink-0" 
+                            />
+                        ) : (
+                            <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-xs shrink-0">
+                            {guild.name.charAt(0)}
+                            </div>
+                        )}
+                        <span className="truncate">{guild.name}</span>
+                        {guild.has_bot && <Bot className="h-4 w-4 text-primary ml-1 shrink-0" />}
+                        </div>
+                    </SelectItem>
+                    ))}
+                </SelectContent>
+                </Select>
+                <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="h-12 w-12 shrink-0"
+                    onClick={() => fetchGuilds(true)}
+                    disabled={loadingGuilds}
+                    title="Atualizar lista"
+                >
+                    <RefreshCw className={`h-4 w-4 ${loadingGuilds ? 'animate-spin' : ''}`} />
+                </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+                Apenas servidores onde você é Admin ou tem permissão de Gerenciar Servidor aparecem aqui.
+            </p>
+          </div>
+
+          {selectedGuild && selectedGuild.is_registered && (
+            <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive">
+               <AlertCircle className="h-4 w-4" />
+               <AlertTitle>Servidor já cadastrado</AlertTitle>
+               <AlertDescription className="mt-2">
+                 <p>Este servidor já está cadastrado em nossa plataforma. Você pode editá-lo em "Meus Servidores".</p>
+               </AlertDescription>
+            </Alert>
+          )}
+
+          {selectedGuild && !selectedGuild.is_registered && !selectedGuild.has_bot && (
+             <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive">
+               <Bot className="h-4 w-4" />
+               <AlertTitle>Configuração Necessária</AlertTitle>
+               <AlertDescription className="mt-2">
+                 <p className="mb-4">Para adicionar este servidor, você precisa adicionar nosso bot primeiro. Ele gerenciará os convites automaticamente.</p>
+                 <Button onClick={handleAddBot} className="bg-destructive text-white hover:bg-destructive/90 w-full sm:w-auto">
+                    Adicionar Bot e Continuar
+                 </Button>
+               </AlertDescription>
+             </Alert>
+          )}
+
+          {selectedGuild && !selectedGuild.is_registered && selectedGuild.has_bot && (
+            <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-center gap-3">
+                 <ShieldCheck className="h-6 w-6 text-primary" />
+                 <div>
+                    <h3 className="font-semibold text-primary">Bot Verificado</h3>
+                    <p className="text-sm text-muted-foreground">O bot está ativo e configurado neste servidor.</p>
+                 </div>
+              </div>
+
+              {/* Server Name (ReadOnly) */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-muted-foreground">Nome do Servidor</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={selectedGuild.name}
+                    readOnly
+                    className={`${inputClass} pl-10 opacity-70 cursor-not-allowed`}
+                  />
+                  <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              </div>
+
+              {/* Banner URL */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Banner URL (Opcional)
+                </label>
+                <input
+                  type="url"
+                  value={bannerUrl}
+                  onChange={(e) => setBannerUrl(e.target.value)}
+                  placeholder="https://imgur.com/..."
+                  className={inputClass}
+                  disabled={createServerMutation.isPending}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                    Proporção recomendada: 16:9 (ex: 1920x1080). Se deixar em branco, tentaremos usar o banner do seu servidor Discord.
+                </p>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Descrição *
+                </label>
+                <textarea
+                  className={`${inputClass} min-h-[120px] resize-y`}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Descreva seu servidor..."
+                  maxLength={200}
+                  required
+                  disabled={createServerMutation.isPending}
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary/10 text-primary text-[10px] font-bold">M</span>
+                  Você pode usar <strong>Markdown</strong> para formatar sua descrição.
+                </p>
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Categoria
+                </label>
+                <Select
+                  value={category}
+                  onValueChange={(value) => setCategory(value as ServerCategory)}
+                  disabled={createServerMutation.isPending}
+                >
+                  <SelectTrigger className={inputClass}>
+                    <SelectValue placeholder="Selecione uma categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        <div className="flex items-center gap-2">
+                            <span className="text-lg">{CATEGORY_ICONS[cat]}</span>
+                            <span>{cat}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Tags (separadas por vírgula)
+                </label>
+                <input
+                  type="text"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  placeholder="ex: campeonato, x1, treino"
+                  className={inputClass}
+                  disabled={createServerMutation.isPending}
+                />
+              </div>
+
+              {/* Minimum Entry Value */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Valor Mínimo de Entrada (Opcional)
+                </label>
+                <input
+                  type="number"
+                  value={minBetValue}
+                  onChange={(e) => setMinBetValue(e.target.value)}
+                  placeholder="Ex: 5.00 (para R$ 5,00)"
+                  className={inputClass}
+                  step="0.01"
+                  min="0"
+                  disabled={createServerMutation.isPending}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Se o servidor tem requisitos de entrada, qual o valor mínimo? (Ex: 5.00)
+                </p>
+              </div>
+
+              {/* Custom Room Value */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  Valor das Salas Personalizadas (Opcional)
+                </label>
+                <input
+                  type="number"
+                  value={customRoomValue}
+                  onChange={(e) => setCustomRoomValue(e.target.value)}
+                  placeholder="Ex: 10.00 (para R$ 10,00)"
+                  className={inputClass}
+                  step="0.01"
+                  min="0"
+                  disabled={createServerMutation.isPending}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Se o servidor oferece salas personalizadas, qual o valor para criar uma? (Ex: 10.00)
+                </p>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-semibold"
+                disabled={createServerMutation.isPending}
+              >
+                {createServerMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  "Enviar Servidor para Análise"
+                )}
+              </Button>
+            </form>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
