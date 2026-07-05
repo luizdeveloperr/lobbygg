@@ -22,7 +22,7 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between px-4 sm:px-8">
         <Link to="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <img src="/ggap-logo.png" alt="LobbyGG" className="h-10 w-auto sm:h-14 object-contain" />
+          <img src="/lobbygg.png" alt="LobbyGG" className="h-10 w-auto sm:h-14 object-contain" />
           <span className="text-lg sm:text-2xl font-bold tracking-tight font-['Poppins'] text-foreground leading-tight">
             LobbyGG
           </span>
