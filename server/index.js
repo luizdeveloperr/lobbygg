@@ -353,7 +353,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
                         { name: 'Como fazer?', value: 'Vá até o servidor e use o comando `/boost` novamente.' },
                         { name: 'Dica', value: 'Manter seu servidor no topo atrai muito mais membros!' }
                     )
-                    .setThumbnail("https://i.postimg.cc/G2zCFLNX/ggap-logo.png")
+                    .setThumbnail("https://i.postimg.cc/VNVM5Jyg/lobbygg.png")
                     .setColor(0x00FFFF)
                     .setTimestamp();
                    
