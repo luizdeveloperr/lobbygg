@@ -139,6 +139,7 @@ const logAdminAction = async (action, details, user = null, type = 'info') => {
 
 const internalOnly = (req, res, next) => {
   const path = req.path.replace(/^\/api/, '');
+  const hasBearerToken = typeof req.headers.authorization === "string" && req.headers.authorization.startsWith("Bearer ");
   
   // Exceção para rotas admin (protegidas pelo adminOnly depois)
   if (path.startsWith("/admin/")) return next();
@@ -156,6 +157,10 @@ const internalOnly = (req, res, next) => {
   if (
     req.path.startsWith("/auth/") || 
     path === "/user/check-bio" || // Permite checagem de bio
+    (hasBearerToken && path === "/user/guilds") || // Fluxo autenticado do Add Server
+    (hasBearerToken && path === "/user/servers") || // Fluxo autenticado de Meus Servidores
+    (hasBearerToken && path === "/servers" && req.method === "POST") || // Criação autenticada
+    (hasBearerToken && path.startsWith("/servers/") && (req.method === "PUT" || req.method === "DELETE")) || // Edição/remoção autenticada
     path.startsWith("/slugs/") || 
     path.startsWith("/admin/") || 
     path === "/maintenance-status" || // Permite checagem de manutenção pública
@@ -790,8 +795,8 @@ async function isBotInGuild(guildId, { force = false } = {}) {
   if (!DISCORD_BOT_TOKEN || !guildId) return false;
 
   const cacheKey = `BOT_IN:${guildId}`;
+  const cached = guildsCache.get(cacheKey);
   if (!force) {
-    const cached = guildsCache.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp < BOT_GUILD_CHECK_TTL_MS)) {
       return Boolean(cached.data);
     }
@@ -808,6 +813,9 @@ async function isBotInGuild(guildId, { force = false } = {}) {
     const status = err?.response?.status;
     if (status === 429) {
       console.warn(`[⚠️] Discord Rate Limit ao verificar presença do bot na guild ${guildId}.`);
+      if (cached) {
+        return Boolean(cached.data);
+      }
     } else if (status !== 403 && status !== 404) {
       console.error(`Error checking bot presence for guild ${guildId}:`, err?.response?.data || err?.message || err);
     }
@@ -836,14 +844,16 @@ async function mapWithConcurrency(items, concurrency, mapper) {
   return results;
 }
 
-const GUILD_COUNTS_TTL_MS = 30 * 1000;
+const GUILD_COUNTS_TTL_MS = 5 * 60 * 1000;
+const GUILD_COUNTS_CONCURRENCY = 2;
+const USER_GUILDS_BOT_CHECK_CONCURRENCY = 3;
 
 async function getGuildCounts(guildId, { force = false, timeoutMs = 1500 } = {}) {
   if (!DISCORD_BOT_TOKEN || !guildId) return null;
 
   const cacheKey = `GUILD_COUNTS:${guildId}`;
+  const cached = guildsCache.get(cacheKey);
   if (!force) {
-    const cached = guildsCache.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp < GUILD_COUNTS_TTL_MS)) {
       return cached.data || null;
     }
@@ -868,8 +878,24 @@ async function getGuildCounts(guildId, { force = false, timeoutMs = 1500 } = {})
     if (err.response?.status === 429) {
       console.warn(`[⚠️] Discord Rate Limit ao buscar contagens para guild ${guildId}.`);
     }
+    if (cached?.data) {
+      return cached.data;
+    }
     return null;
   }
+}
+
+async function fetchManageableGuilds(discordToken) {
+  const guildsRes = await axios.get("https://discord.com/api/users/@me/guilds", {
+    headers: { Authorization: `Bearer ${discordToken}` },
+  });
+
+  return guildsRes.data.filter((guild) => {
+    const perms = BigInt(guild.permissions);
+    const ADMIN = 0x8n;
+    const MANAGE_GUILD = 0x20n;
+    return (perms & ADMIN) === ADMIN || (perms & MANAGE_GUILD) === MANAGE_GUILD;
+  });
 }
 
 // Simple in-memory cache for guilds: { [userId]: { data: [], timestamp: number } }
@@ -1147,7 +1173,7 @@ app.get("/api/servers", async (req, res) => {
     }
 
     // Fetch online status from Discord Bot if available
-    const serversWithOnline = await Promise.all(data.map(async (server) => {
+    const serversWithOnline = await mapWithConcurrency(data, GUILD_COUNTS_CONCURRENCY, async (server) => {
       // Add stats
       const stats = statsMap[server.id] || { count: 0, sum: 0 };
       server.reviews_count = stats.count;
@@ -1159,7 +1185,7 @@ app.get("/api/servers", async (req, res) => {
         return server;
       }
       return server;
-    }));
+    });
 
     res.json(serversWithOnline);
   } catch (err) {
@@ -1809,22 +1835,9 @@ app.get("/api/user/guilds", async (req, res) => {
     if (!forceRefresh && cached && (Date.now() - cached.timestamp < 60 * 60 * 1000)) {
       adminGuilds = cached.data;
     } else {
-        const guildsRes = await axios.get("https://discord.com/api/users/@me/guilds", {
-        headers: { Authorization: `Bearer ${discordToken}` },
-        });
+        const manageableGuilds = await fetchManageableGuilds(discordToken);
 
-        const guilds = guildsRes.data;
-
-        // Filter guilds where user has MANAGE_GUILD (0x20) or ADMINISTRATOR (0x8)
-        // Permissions are returned as a string, so we use BigInt
-        const manageableGuilds = guilds.filter(guild => {
-          const perms = BigInt(guild.permissions);
-          const ADMIN = 0x8n;
-          const MANAGE_GUILD = 0x20n;
-          return (perms & ADMIN) === ADMIN || (perms & MANAGE_GUILD) === MANAGE_GUILD;
-        });
-
-        adminGuilds = await mapWithConcurrency(manageableGuilds, 6, async (guild) => {
+        adminGuilds = await mapWithConcurrency(manageableGuilds, USER_GUILDS_BOT_CHECK_CONCURRENCY, async (guild) => {
           const hasBot = await isBotInGuild(guild.id, { force: forceRefresh });
           return { ...guild, has_bot: hasBot };
         });
@@ -1892,6 +1905,10 @@ app.post("/api/servers", async (req, res) => {
       return res.status(401).json({ error: "Invalid Token" });
     }
 
+    if (!decoded.discord_token) {
+      return res.status(401).json({ error: "Sessão do Discord inválida ou expirada." });
+    }
+
     const newServer = req.body;
 
     // Validate Input (Basic)
@@ -1913,6 +1930,22 @@ app.post("/api/servers", async (req, res) => {
             }
         } catch (ignored) {
         }
+    }
+
+    if (newServer.guildId) {
+      const manageableGuilds = await fetchManageableGuilds(decoded.discord_token);
+      const selectedGuild = manageableGuilds.find((guild) => guild.id === newServer.guildId);
+
+      if (!selectedGuild) {
+        return res.status(403).json({ error: "Você não possui permissão para cadastrar este servidor." });
+      }
+
+      if (newServer.autoInvite) {
+        const hasBot = await isBotInGuild(newServer.guildId);
+        if (!hasBot) {
+          return res.status(400).json({ error: "Adicione o bot ao servidor antes de continuar." });
+        }
+      }
     }
 
     let inviteLink = newServer.inviteLink;
