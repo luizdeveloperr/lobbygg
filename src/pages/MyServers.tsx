@@ -265,7 +265,7 @@ function ServerListItem({ server, type }: { server: Server, type: 'approved' | '
             </span>
             <span className="hidden xs:inline text-border">•</span>
             <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-secondary/50 border border-border/50">
-              <span className="flex h-5 min-w-5 items-center justify-center rounded bg-white px-1 shadow-sm">
+              <span className="flex h-5 min-w-5 items-center justify-center px-1">
                 <img
                   src={CATEGORY_LOGOS[server.category]}
                   alt={`${server.category} logo`}

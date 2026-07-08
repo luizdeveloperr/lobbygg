@@ -185,7 +185,7 @@ const ServerDetail = () => {
                     <span className="font-semibold text-foreground">{server.members.toLocaleString("pt-BR")}</span> membros
                   </span>
                   <span className="flex items-center gap-1.5 bg-secondary/50 px-3 py-1 rounded-full">
-                    <span className="flex h-6 min-w-6 items-center justify-center rounded bg-white px-1 shadow-sm">
+                    <span className="flex h-6 min-w-6 items-center justify-center px-1">
                       <img
                         src={CATEGORY_LOGOS[server.category]}
                         alt={`${server.category} logo`}

@@ -167,7 +167,7 @@ export function ServerCard({ server, variant = "default" }: ServerCardProps) {
                   {server.name}
               </h3>
               <div
-                className="flex h-7 min-w-7 items-center justify-center rounded-md bg-white px-1 shadow-sm ring-1 ring-black/5"
+                className="flex h-7 min-w-7 items-center justify-center px-1"
                 title={server.category}
               >
                  <img

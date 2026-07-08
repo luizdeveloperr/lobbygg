@@ -28,7 +28,7 @@ export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
               : "bg-secondary text-muted-foreground hover:text-foreground"
           }`}
         >
-          <span className="flex h-6 min-w-6 items-center justify-center rounded-md bg-white px-1 shadow-sm">
+          <span className="flex h-6 min-w-6 items-center justify-center px-1">
             <img
               src={CATEGORY_LOGOS[cat]}
               alt={`${cat} logo`}
