@@ -49,33 +49,30 @@ export interface Review {
 }
 
 export type ServerCategory =
-  | "Competitivo"
-  | "X1"
-  | "Ranqueado"
-  | "Guildas"
-  | "Sala Privada"
-  | "Treino"
-  | "Campeonatos"
-  | "Comunidade";
+  | "Free Fire"
+  | "Fortnite"
+  | "Minecraft"
+  | "Roblox"
+  | "Valorant"
+  | "CS2"
+  | "Outros";
 
 export const CATEGORIES: ServerCategory[] = [
-  "Competitivo",
-  "X1",
-  "Ranqueado",
-  "Guildas",
-  "Sala Privada",
-  "Treino",
-  "Campeonatos",
-  "Comunidade",
+  "Free Fire",
+  "Fortnite",
+  "Minecraft",
+  "Roblox",
+  "Valorant",
+  "CS2",
+  "Outros",
 ];
 
 export const CATEGORY_ICONS: Record<ServerCategory, string> = {
-  "Competitivo": "🏆",
-  "X1": "⚔️",
-  "Ranqueado": "📊",
-  "Guildas": "🛡️",
-  "Sala Privada": "🔒",
-  "Treino": "🎯",
-  "Campeonatos": "🏅",
-  "Comunidade": "👥",
+  "Free Fire": "🔥",
+  "Fortnite": "🎮",
+  "Minecraft": "⛏️",
+  "Roblox": "👾",
+  "Valorant": "🔫",
+  "CS2": "💣",
+  "Outros": "🎲",
 };

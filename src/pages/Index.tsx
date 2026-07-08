@@ -42,11 +42,11 @@ const Index = () => {
       <section className="relative overflow-hidden py-16 md:py-24">
         <div className="relative mx-auto max-w-6xl px-4 text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground">
-            Servidores{" "}
-            <span className="text-primary">Competitivos</span> 
+            Servidores de{" "}
+            <span className="text-primary">Jogos</span> 
           </h1>
           <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-            Encontre os melhores servidores competitivos, X1 e campeonatos do Brasil.
+            Encontre os melhores servidores de Free Fire, Fortnite, Minecraft e muito mais.
           </p>
           <div className="mt-8 mx-auto max-w-xl">
             <SearchBar value={search} onChange={setSearch} />

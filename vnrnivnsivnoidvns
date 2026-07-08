@@ -1,0 +1,27 @@
+crie um script que envie todos os dados do meu banco supabase que a conexao é:
+
+
+
+SUPABASE_URL=https://uzhqnemecaqgfemkmdar.supabase.co
+
+SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6aHFuZW1lY2FxZ2ZlbWttZGFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2OTE5NTgsImV4cCI6MjA4NjI2Nzk1OH0.yuP1Kkv9mfqpc6e4iWB2Pfy2-QV35VkK8CyfAnBuyMs
+
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6aHFuZW1lY2FxZ2ZlbWttZGFyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDY5MTk1OCwiZXhwIjoyMDg2MjY3OTU4fQ.q78tanYBHmVp40t7xghxGP2xzWl_crpGTbbCVbpGUZI
+
+
+
+
+
+
+
+
+
+
+
+
+
+ para a conexão do banco postgressql que criei que a conexão é:
+
+
+
+ postgresql://squarecloud:DO1ggVog8c6cI0b4F1lIRNTX@square-cloud-db-594a281f4b3a42f78d2d4385b19ab3fa.squareweb.app:7013
