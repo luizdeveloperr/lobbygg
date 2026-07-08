@@ -1,3 +1,10 @@
+import cs2Logo from "@/assets/game-logos/cs2.png";
+import fortniteLogo from "@/assets/game-logos/fortnite.png";
+import freeFireGarenaLogo from "@/assets/game-logos/free-fire-garena.png";
+import minecraftLogo from "@/assets/game-logos/minecraft.svg";
+import robloxLogo from "@/assets/game-logos/roblox.svg";
+import valorantLogo from "@/assets/game-logos/valorant.png";
+
 export type ServerStatus = "approved" | "pending" | "rejected";
 
 export interface Server {
@@ -104,11 +111,11 @@ const createCategoryLogo = (
   `)}`;
 
 export const CATEGORY_LOGOS: Record<ServerCategory, string> = {
-  "Free Fire": createCategoryLogo("FREE FIRE", "#F97316", "#FFFFFF", "#FACC15"),
-  "Fortnite": createCategoryLogo("FORTNITE", "#2563EB", "#FFFFFF", "#22D3EE"),
-  "Minecraft": createCategoryLogo("MINECRAFT", "#166534", "#F8FAFC", "#4ADE80"),
-  "Roblox": createCategoryLogo("ROBLOX", "#111827", "#FFFFFF", "#EF4444"),
-  "Valorant": createCategoryLogo("VALORANT", "#7F1D1D", "#FFFFFF", "#FB7185"),
-  "CS2": createCategoryLogo("CS2", "#1E293B", "#FFFFFF", "#F59E0B"),
+  "Free Fire": freeFireGarenaLogo,
+  "Fortnite": fortniteLogo,
+  "Minecraft": minecraftLogo,
+  "Roblox": robloxLogo,
+  "Valorant": valorantLogo,
+  "CS2": cs2Logo,
   "Outros": createCategoryLogo("OUTROS", "#581C87", "#FFFFFF", "#A78BFA"),
 };
