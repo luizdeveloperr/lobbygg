@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Users, ExternalLink, Star, Tag, Flag, Calendar, Sparkles } from "lucide-react";
-import { Server, CATEGORY_ICONS } from "@/lib/types";
+import { Server, CATEGORY_LOGOS } from "@/lib/types";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { ReportServerDialog } from "./ReportServerDialog";
@@ -166,8 +166,16 @@ export function ServerCard({ server, variant = "default" }: ServerCardProps) {
               <h3 className="truncate text-lg font-bold text-foreground group-hover:text-primary transition-colors">
                   {server.name}
               </h3>
-              <div className="shrink-0" title={server.category}>
-                 <img src={CATEGORY_ICONS[server.category]} alt={server.category} className="h-6 w-auto max-w-[40px] object-contain" />
+              <div
+                className="flex h-7 min-w-7 items-center justify-center rounded-md bg-white px-1 shadow-sm ring-1 ring-black/5"
+                title={server.category}
+              >
+                 <img
+                   src={CATEGORY_LOGOS[server.category]}
+                   alt={`${server.category} logo`}
+                   className="h-4 w-auto max-w-[48px] object-contain"
+                   loading="lazy"
+                 />
               </div>
             </div>
             

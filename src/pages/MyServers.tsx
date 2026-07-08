@@ -17,7 +17,7 @@ import {
   ExternalLink,
   MessageSquare
 } from "lucide-react";
-import { Server, CATEGORY_ICONS } from "@/lib/types";
+import { Server, CATEGORY_LOGOS } from "@/lib/types";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -265,7 +265,14 @@ function ServerListItem({ server, type }: { server: Server, type: 'approved' | '
             </span>
             <span className="hidden xs:inline text-border">•</span>
             <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-secondary/50 border border-border/50">
-              <img src={CATEGORY_ICONS[server.category]} alt={server.category} className="h-4 w-auto max-w-[20px] object-contain" />
+              <span className="flex h-5 min-w-5 items-center justify-center rounded bg-white px-1 shadow-sm">
+                <img
+                  src={CATEGORY_LOGOS[server.category]}
+                  alt={`${server.category} logo`}
+                  className="h-3 w-auto max-w-[28px] object-contain"
+                  loading="lazy"
+                />
+              </span>
               {server.category}
             </span>
           </div>

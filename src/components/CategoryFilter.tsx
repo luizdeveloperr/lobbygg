@@ -1,4 +1,4 @@
-import { ServerCategory, CATEGORIES, CATEGORY_ICONS } from "@/lib/types";
+import { ServerCategory, CATEGORIES, CATEGORY_LOGOS } from "@/lib/types";
 
 interface CategoryFilterProps {
   selected: ServerCategory | null;
@@ -28,8 +28,15 @@ export function CategoryFilter({ selected, onSelect }: CategoryFilterProps) {
               : "bg-secondary text-muted-foreground hover:text-foreground"
           }`}
         >
-          <span className="text-lg">{CATEGORY_ICONS[cat]}</span>
-          {cat}
+          <span className="flex h-6 min-w-6 items-center justify-center rounded-md bg-white px-1 shadow-sm">
+            <img
+              src={CATEGORY_LOGOS[cat]}
+              alt={`${cat} logo`}
+              className="h-4 w-auto max-w-[52px] object-contain"
+              loading="lazy"
+            />
+          </span>
+          <span>{cat}</span>
         </button>
       ))}
     </div>

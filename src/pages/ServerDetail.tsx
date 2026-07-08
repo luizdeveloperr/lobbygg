@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Header } from "@/components/Header";
 import { useServer } from "@/hooks/queries/useServers";
-import { CATEGORY_ICONS } from "@/lib/types";
+import { CATEGORY_LOGOS } from "@/lib/types";
 import { ArrowLeft, Users, ExternalLink, Calendar, Tag, Star, Clock, Loader2, Share2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReviewSection } from "@/components/ReviewSection";
@@ -185,7 +185,14 @@ const ServerDetail = () => {
                     <span className="font-semibold text-foreground">{server.members.toLocaleString("pt-BR")}</span> membros
                   </span>
                   <span className="flex items-center gap-1.5 bg-secondary/50 px-3 py-1 rounded-full">
-                    <span className="text-lg">{CATEGORY_ICONS[server.category]}</span>
+                    <span className="flex h-6 min-w-6 items-center justify-center rounded bg-white px-1 shadow-sm">
+                      <img
+                        src={CATEGORY_LOGOS[server.category]}
+                        alt={`${server.category} logo`}
+                        className="h-4 w-auto max-w-[40px] object-contain"
+                        loading="lazy"
+                      />
+                    </span>
                     <span className="font-medium text-foreground">{server.category}</span>
                   </span>
                   <span className="flex items-center gap-1.5">

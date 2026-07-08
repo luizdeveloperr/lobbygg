@@ -36,7 +36,7 @@ import {
   X,
   ArrowLeft
 } from "lucide-react";
-import { Server, CATEGORY_ICONS } from "@/lib/types";
+import { Server, CATEGORY_LOGOS } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -1571,8 +1571,15 @@ function AdminServerCard({
             </div>
         </div>
         <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1 shrink-0">
-            <img src={CATEGORY_ICONS[server.category]} className="h-3 w-3" alt="" />
+          <span className="flex items-center gap-1.5 shrink-0">
+            <span className="flex h-5 min-w-5 items-center justify-center rounded bg-white px-1 shadow-sm">
+              <img
+                src={CATEGORY_LOGOS[server.category]}
+                className="h-3 w-auto max-w-[28px] object-contain"
+                alt={`${server.category} logo`}
+                loading="lazy"
+              />
+            </span>
             {server.category}
           </span>
           <span className="hidden xs:inline">•</span>

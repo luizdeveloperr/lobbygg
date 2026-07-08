@@ -76,3 +76,13 @@ export const CATEGORY_ICONS: Record<ServerCategory, string> = {
   "CS2": "💣",
   "Outros": "🎲",
 };
+
+export const CATEGORY_LOGOS: Record<ServerCategory, string> = {
+  "Free Fire": "https://upload.wikimedia.org/wikipedia/pt/4/41/Free_Fire_logo.png",
+  "Fortnite": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Fortnite-logo.svg",
+  "Minecraft": "https://upload.wikimedia.org/wikipedia/commons/b/bc/Minecraft_2021_logo.svg",
+  "Roblox": "https://upload.wikimedia.org/wikipedia/commons/9/98/Roblox_logo.svg",
+  "Valorant": "https://upload.wikimedia.org/wikipedia/commons/f/fc/Valorant_logo.svg",
+  "CS2": "https://upload.wikimedia.org/wikipedia/commons/2/27/Counter-Strike_2_icon.svg",
+  "Outros": "https://upload.wikimedia.org/wikipedia/commons/3/3a/Icon_Games.svg",
+};
