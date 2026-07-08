@@ -191,9 +191,10 @@ app.set('trust proxy', 1);
 
 const port = process.env.PORT || 3000;
 
-// Configurações de URL (Dinamismo para Produção)
-// Se VITE_SITE_URL estiver no .env, usa ela. Caso contrário, tenta detectar ou usa localhost
-const SITE_URL = process.env.VITE_SITE_URL || process.env.SITE_URL || "";
+// Configurações de URL
+const CANONICAL_SITE_URL = "https://lobbygg.com.br";
+const CANONICAL_SITE_HOST = "lobbygg.com.br";
+const SITE_URL = (process.env.VITE_SITE_URL || process.env.SITE_URL || CANONICAL_SITE_URL).trim();
 
 // Supabase Client (Only for Database Access)
 const supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
@@ -652,7 +653,8 @@ async function getGuildMember(userId) {
 }
 
 function textHasSite(text) {
-  return String(text || "").toLowerCase().includes("lobbygg.com.br");
+  const normalized = String(text || "").toLowerCase();
+  return normalized.includes(CANONICAL_SITE_HOST) || normalized.includes(`www.${CANONICAL_SITE_HOST}`);
 }
 
 async function getUserHasSite(userId, memberHint = null) {
