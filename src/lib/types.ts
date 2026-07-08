@@ -77,12 +77,38 @@ export const CATEGORY_ICONS: Record<ServerCategory, string> = {
   "Outros": "🎲",
 };
 
+const createCategoryLogo = (
+  label: string,
+  background: string,
+  foreground: string,
+  accent: string
+) =>
+  `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="160" height="64" viewBox="0 0 160 64" fill="none">
+      <rect width="160" height="64" rx="14" fill="${background}"/>
+      <rect x="6" y="6" width="148" height="52" rx="10" fill="rgba(255,255,255,0.08)"/>
+      <circle cx="24" cy="32" r="10" fill="${accent}"/>
+      <path d="M20 32h8M24 28v8" stroke="${background}" stroke-width="2.5" stroke-linecap="round"/>
+      <text
+        x="42"
+        y="38"
+        fill="${foreground}"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="20"
+        font-weight="700"
+        letter-spacing="0.5"
+      >
+        ${label}
+      </text>
+    </svg>
+  `)}`;
+
 export const CATEGORY_LOGOS: Record<ServerCategory, string> = {
-  "Free Fire": "https://upload.wikimedia.org/wikipedia/pt/4/41/Free_Fire_logo.png",
-  "Fortnite": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Fortnite-logo.svg",
-  "Minecraft": "https://upload.wikimedia.org/wikipedia/commons/b/bc/Minecraft_2021_logo.svg",
-  "Roblox": "https://upload.wikimedia.org/wikipedia/commons/9/98/Roblox_logo.svg",
-  "Valorant": "https://upload.wikimedia.org/wikipedia/commons/f/fc/Valorant_logo.svg",
-  "CS2": "https://upload.wikimedia.org/wikipedia/commons/2/27/Counter-Strike_2_icon.svg",
-  "Outros": "https://upload.wikimedia.org/wikipedia/commons/3/3a/Icon_Games.svg",
+  "Free Fire": createCategoryLogo("FREE FIRE", "#F97316", "#FFFFFF", "#FACC15"),
+  "Fortnite": createCategoryLogo("FORTNITE", "#2563EB", "#FFFFFF", "#22D3EE"),
+  "Minecraft": createCategoryLogo("MINECRAFT", "#166534", "#F8FAFC", "#4ADE80"),
+  "Roblox": createCategoryLogo("ROBLOX", "#111827", "#FFFFFF", "#EF4444"),
+  "Valorant": createCategoryLogo("VALORANT", "#7F1D1D", "#FFFFFF", "#FB7185"),
+  "CS2": createCategoryLogo("CS2", "#1E293B", "#FFFFFF", "#F59E0B"),
+  "Outros": createCategoryLogo("OUTROS", "#581C87", "#FFFFFF", "#A78BFA"),
 };
