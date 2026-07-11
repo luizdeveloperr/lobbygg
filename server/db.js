@@ -426,7 +426,9 @@ class QueryBuilder {
     });
 
     const where = buildWhereClause(this.filters);
-    const adjustedWhereClause = where.clause.replace(/\$(\d+)/g, (_, index) => `$${Number(index) + values.length}`);
+    const adjustedWhereClause = where.clause
+  .replace(/\bt\./g, "")
+  .replace(/\$(\d+)/g, (_, index) => `$${Number(index) + values.length}`);
     const returningSql = this.returningSelection ? " RETURNING *" : "";
     const sql = `UPDATE ${quoteIdentifier(this.table)} SET ${sets.join(", ")}${adjustedWhereClause}${returningSql}`;
     const result = await this.pool.query(sql, [...values, ...where.values]);
