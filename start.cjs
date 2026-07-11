@@ -2,6 +2,8 @@ const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
 /**
  * Script Unificado de Inicialização (Produção/Hospedagem)
  * Este script automatiza:
@@ -15,7 +17,6 @@ function runCommand(command, args, options = {}) {
     console.log(`[🚀] Executando: ${command} ${args.join(' ')}`);
     const child = spawn(command, args, { 
       stdio: 'inherit', 
-      shell: true,
       ...options 
     });
 
@@ -23,6 +24,14 @@ function runCommand(command, args, options = {}) {
       if (code === 0) resolve();
       else reject(new Error(`Comando falhou com código ${code}`));
     });
+  });
+}
+
+function runInstall(stepLabel, cwd, args) {
+  console.log(`\n${stepLabel}`);
+  execSync(`${npmCommand} ${args.join(' ')}`, {
+    stdio: 'inherit',
+    cwd,
   });
 }
 
@@ -39,17 +48,20 @@ async function start() {
     }
 
     // 1. Instalar dependências da Raiz
-    console.log('\n[1/4] Instalando dependências do projeto...');
-    // Adicionado --no-bin-links e --ignore-scripts para evitar erros de permissão/SWC em alguns dashboards
-    execSync('npm install --include=dev', { stdio: 'inherit' });
+    runInstall('[1/4] Instalando dependências do projeto...', __dirname, ['install', '--include=dev']);
+    if (!fs.existsSync(path.join(__dirname, 'node_modules'))) {
+      throw new Error('As dependências da raiz não foram instaladas corretamente.');
+    }
 
     // 2. Instalar dependências do Servidor
-    console.log('\n[2/4] Instalando dependências do servidor...');
-    execSync('cd server && npm install', { stdio: 'inherit' });
+    runInstall('[2/4] Instalando dependências do servidor...', path.join(__dirname, 'server'), ['install']);
+    if (!fs.existsSync(path.join(__dirname, 'server', 'node_modules'))) {
+      throw new Error('As dependências do servidor não foram instaladas corretamente.');
+    }
 
     // 3. Gerar o Build do Frontend
     console.log('\n[3/4] Gerando build do frontend (Vite)...');
-    await runCommand('npm', ['run', 'build']);
+    await runCommand(npmCommand, ['run', 'build'], { cwd: __dirname });
 
     // Verificação da pasta dist
     if (!fs.existsSync(path.join(__dirname, 'dist'))) {
@@ -65,7 +77,7 @@ async function start() {
     // Inicia o processo do servidor e garante que as variáveis de ambiente atuais sejam passadas
     const server = spawn('node', ['server/index.js'], { 
       stdio: 'inherit',
-      shell: true,
+      cwd: __dirname,
       env: { ...process.env }
     });
 
