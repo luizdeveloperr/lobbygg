@@ -24,11 +24,8 @@ try {
   console.warn("[⚠️] iconv-lite pre-load warning:", e.message);
 }
 
-// Ignorar erros de certificado SSL em desenvolvimento (Resolve CERT_HAS_EXPIRED)
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
-const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
+const { pgClient: db } = require("./db");
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
 
@@ -87,7 +84,7 @@ const adminOnly = async (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     
     // Check if user is banned
-    const { data: user, error } = await supabase
+    const { data: user, error } = await db
       .from("users")
       .select("is_banned")
       .eq("id", decoded.id)
@@ -124,7 +121,7 @@ const logAdminAction = async (action, details, user = null, type = 'info') => {
       ip_address: null // Can be added if needed
     };
 
-    const { error } = await supabase
+    const { error } = await db
       .from("admin_logs")
       .insert([logData]);
 
@@ -195,21 +192,6 @@ const port = process.env.PORT || 3000;
 const CANONICAL_SITE_URL = "https://lobbygg.com.br";
 const CANONICAL_SITE_HOST = "lobbygg.com.br";
 const SITE_URL = (process.env.VITE_SITE_URL || process.env.SITE_URL || CANONICAL_SITE_URL).trim();
-
-// Supabase Client (Only for Database Access)
-const supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
-const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "").trim();
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error("❌ ERRO CRÍTICO: Supabase URL ou Key não encontradas!");
-  console.error("URL:", supabaseUrl);
-  console.error("Key:", supabaseKey ? "DEFINIDA (Oculta)" : "NÃO DEFINIDA");
-} else {
-  console.log("✅ Configuração Supabase carregada.");
-  console.log("🔗 URL:", supabaseUrl);
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Funções auxiliares para URLs
 const getBaseUrl = (req) => {
@@ -287,7 +269,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
 
         try {
           // 1. Check if server is registered in site
-          const { data: server, error: serverError } = await supabase
+          const { data: server, error: serverError } = await db
             .from('servers')
             .select('id, name, boosts, status, boost_reminder, auto_boost')
             .eq('guild_id', guildId)
@@ -302,7 +284,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
 
           // 2. Check cooldown (2 hours = 7200000 ms)
           const twoHoursAgo = new Date(Date.now() - 7200000).toISOString();
-          const { data: recentBoost, error: boostCheckError } = await supabase
+          const { data: recentBoost, error: boostCheckError } = await db
             .from('boost_logs')
             .select('created_at')
             .eq('user_id', userId)
@@ -321,7 +303,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
           }
 
           // 3. Perform Boost
-          const { error: updateError } = await supabase
+          const { error: updateError } = await db
             .from('servers')
             .update({ 
               boosts: server.boosts + 1,
@@ -332,7 +314,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
           if (updateError) throw updateError;
 
           // 4. Log Boost
-          await supabase.from('boost_logs').insert({
+          await db.from('boost_logs').insert({
             user_id: userId,
             server_id: server.id,
             guild_id: guildId
@@ -344,7 +326,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
             setTimeout(async () => {
               try {
                 // Check if the server still has reminder enabled
-                const { data: currentServer } = await supabase
+                const { data: currentServer } = await db
                   .from('servers')
                   .select('name, boost_reminder, auto_boost, id')
                   .eq('id', server.id)
@@ -454,7 +436,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
       // Approve Logic
       await interaction.deferUpdate();
       try {
-        const { error } = await supabase
+        const { error } = await db
           .from('servers')
           .update({ status: 'approved', rejection_reason: null, allow_resubmission: true })
           .eq('id', serverId);
@@ -487,7 +469,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
         const allowResubmission = allowResubmitRaw === 'não' || allowResubmitRaw === 'nao' ? false : true;
 
         try {
-          const { data: serverData, error } = await supabase
+          const { data: serverData, error } = await db
             .from('servers')
             .update({ 
               status: 'rejected', 
@@ -558,7 +540,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
     const hasSite = textHasSite(displayName) || textHasSite(username) || textHasSite(statusText);
     if (hasSite) return;
 
-    const { data } = await supabase
+    const { data } = await db
       .from("servers")
       .select("id")
       .eq("user_id", userId)
@@ -579,7 +561,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
       const twoHoursAgo = new Date(Date.now() - 7200000).toISOString();
       
       // Fetch servers with auto_boost enabled and last_boost older than 2 hours
-      const { data: servers, error } = await supabase
+      const { data: servers, error } = await db
         .from('servers')
         .select('id, name, user_id, boosts, last_boost_at')
         .eq('auto_boost', true)
@@ -599,7 +581,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
             continue;
           }
           
-          const { data: updatedRows, error: updateError } = await supabase
+          const { data: updatedRows, error: updateError } = await db
             .from('servers')
             .update({ 
               boosts: (server.boosts || 0) + 1,
@@ -612,7 +594,7 @@ if (Discord && DISCORD_BOT_TOKEN) {
           if (!updatedRows || updatedRows.length === 0) continue;
 
           // Log boost
-          await supabase.from('boost_logs').insert({
+          await db.from('boost_logs').insert({
             user_id: server.user_id,
             server_id: server.id,
             guild_id: 'AUTO_BOOST'
@@ -678,7 +660,7 @@ async function disableAutoBoostForUser(userId) {
   if (last && now - last < 5 * 60 * 1000) return;
   autoBoostDisableCooldown.set(userId, now);
 
-  const { data } = await supabase
+  const { data } = await db
     .from("servers")
     .update({ auto_boost: false })
     .eq("user_id", userId)
@@ -998,7 +980,7 @@ app.get("/api/auth/callback", async (req, res) => {
 
     // --- Record User in Database ---
     try {
-      const { error: upsertError } = await supabase.from('users').upsert({
+      const { error: upsertError } = await db.from('users').upsert({
         id: discordUser.id,
         username: discordUser.username,
         email: discordUser.email, // Salva o e-mail do usuário
@@ -1051,7 +1033,7 @@ app.get("/api/auth/me", async (req, res) => {
     const user = jwt.verify(token, JWT_SECRET);
     
     // Check if banned
-    const { data: dbUser } = await supabase
+    const { data: dbUser } = await db
       .from("users")
       .select("is_banned")
       .eq("id", user.id)
@@ -1096,7 +1078,7 @@ app.get("/api/slugs/check/:slug", async (req, res) => {
     }
 
     // 3. Check if already in use
-    const { data: existing, error: searchError } = await supabase
+    const { data: existing, error: searchError } = await db
       .from("servers")
       .select("id, guild_id")
       .eq("custom_slug", slug.toLowerCase())
@@ -1126,7 +1108,7 @@ app.get("/api/slugs/check/:slug", async (req, res) => {
 app.get("/api/slugs/resolve/:slug", async (req, res) => {
   const { slug } = req.params;
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("servers")
       .select("guild_id")
       .eq("custom_slug", slug.toLowerCase())
@@ -1142,7 +1124,7 @@ app.get("/api/slugs/resolve/:slug", async (req, res) => {
 // GET /servers - Fetch all approved servers
 app.get("/api/servers", async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("servers")
       .select("*")
       .eq("status", "approved")
@@ -1157,7 +1139,7 @@ app.get("/api/servers", async (req, res) => {
     // --- Reviews Stats Integration ---
     let statsMap = {};
     try {
-        const { data: reviewsData, error: reviewsError } = await supabase
+        const { data: reviewsData, error: reviewsError } = await db
             .from("reviews")
             .select("server_id, rating");
         
@@ -1201,7 +1183,7 @@ app.get("/api/servers/:id", async (req, res) => {
   const { id } = req.params;
   try {
     // Try to find by guild_id first (Discord ID), then by UUID if it looks like one, or custom_slug
-    let query = supabase.from("servers").select("*");
+    let query = db.from("servers").select("*");
     
     // Regular expression for UUID validation
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -1251,7 +1233,7 @@ app.get("/api/servers/:id", async (req, res) => {
            data.icon_url = newIconUrl;
 
           if (newMemberCount !== oldMembers || newIconUrl !== oldIconUrl) {
-             supabase.from("servers").update({
+             db.from("servers").update({
                  members: newMemberCount,
                  icon_url: newIconUrl
              }).eq("id", data.id).then(({ error }) => {
@@ -1283,7 +1265,7 @@ app.post("/api/servers/:id/validate-image", async (req, res) => {
 
   try {
     // 1. Resolve server
-    let query = supabase.from("servers").select(`id, ${field}, guild_id`);
+    let query = db.from("servers").select(`id, ${field}, guild_id`);
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
     const isGuildId = /^\d{17,20}$/.test(id);
 
@@ -1305,7 +1287,7 @@ app.post("/api/servers/:id/validate-image", async (req, res) => {
       // If image is broken (404, 403, timeout, etc.)
       console.log(`[🧼] Cleaning broken ${field} for server ${server.id}: ${imageUrl}`);
       
-      const { error: updateError } = await supabase
+      const { error: updateError } = await db
         .from("servers")
         .update({ [field]: null })
         .eq("id", server.id);
@@ -1324,7 +1306,7 @@ app.post("/api/servers/:id/validate-image", async (req, res) => {
 // GET /api/admin/servers - List all servers for management
 app.get("/api/admin/servers", adminOnly, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("servers")
       .select(`
         *
@@ -1334,7 +1316,7 @@ app.get("/api/admin/servers", adminOnly, async (req, res) => {
     if (error) throw error;
 
     // Fetch all users to map manually since foreign key might not be explicitly defined in DB cache
-    const { data: users, error: usersError } = await supabase
+    const { data: users, error: usersError } = await db
       .from("users")
       .select("id, username, avatar_url");
 
@@ -1374,7 +1356,7 @@ app.post("/api/admin/servers/:id/status", adminOnly, async (req, res) => {
       updateData.rejection_reason = null; // Clear rejection reason if approved
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("servers")
       .update(updateData)
       .eq("id", id)
@@ -1493,7 +1475,7 @@ app.delete("/api/admin/servers/:id/custom-slug", adminOnly, async (req, res) => 
   const { id } = req.params;
 
   try {
-    const { data: server, error: fetchError } = await supabase
+    const { data: server, error: fetchError } = await db
       .from("servers")
       .select("name, custom_slug")
       .eq("id", id)
@@ -1501,7 +1483,7 @@ app.delete("/api/admin/servers/:id/custom-slug", adminOnly, async (req, res) => 
 
     if (fetchError || !server) return res.status(404).json({ error: "Servidor não encontrado" });
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("servers")
       .update({ custom_slug: null })
       .eq("id", id)
@@ -1528,36 +1510,36 @@ app.delete("/api/admin/servers/:id/custom-slug", adminOnly, async (req, res) => 
 app.get("/api/admin/stats", adminOnly, async (req, res) => {
   try {
     // 1. Get total servers count
-    const { count: totalServers, error: serversErr } = await supabase
+    const { count: totalServers, error: serversErr } = await db
       .from("servers")
       .select("*", { count: 'exact', head: true });
 
     // 2. Get pending servers count
-    const { count: pendingServers, error: pendingErr } = await supabase
+    const { count: pendingServers, error: pendingErr } = await db
       .from("servers")
       .select("*", { count: 'exact', head: true })
       .eq("status", "pending");
 
     // 3. Get approved servers count
-    const { count: approvedServers, error: approvedErr } = await supabase
+    const { count: approvedServers, error: approvedErr } = await db
       .from("servers")
       .select("*", { count: 'exact', head: true })
       .eq("status", "approved");
 
     // 4. Get rejected servers count
-    const { count: rejectedServers, error: rejectedErr } = await supabase
+    const { count: rejectedServers, error: rejectedErr } = await db
       .from("servers")
       .select("*", { count: 'exact', head: true })
       .eq("status", "rejected");
 
     // 5. Count total registered users from users table
-    const { count: totalUsers, error: usersErr } = await supabase
+    const { count: totalUsers, error: usersErr } = await db
       .from("users")
       .select("*", { count: 'exact', head: true });
 
     // 6. Count users who have at least one server
     let usersWithServers = 0;
-    const { data: serverOwners, error: ownersErr } = await supabase
+    const { data: serverOwners, error: ownersErr } = await db
       .from("servers")
       .select("user_id");
     
@@ -1607,7 +1589,7 @@ app.post("/api/admin/settings/maintenance", adminOnly, (req, res) => {
 // GET /api/admin/logs - Fetch admin logs
 app.get("/api/admin/logs", adminOnly, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("admin_logs")
       .select("*")
       .order("created_at", { ascending: false })
@@ -1630,7 +1612,7 @@ app.get("/api/maintenance-status", (req, res) => {
 // --- Public Events Route ---
 app.get("/api/events", async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("events")
       .select("*")
       .order("created_at", { ascending: false });
@@ -1647,7 +1629,7 @@ app.get("/api/events", async (req, res) => {
 app.post("/api/admin/events", adminOnly, async (req, res) => {
   try {
     const { title, description, icon, link, color } = req.body;
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("events")
       .insert([{ title, description, icon, link, color }])
       .select()
@@ -1667,7 +1649,7 @@ app.put("/api/admin/events/:id", adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, icon, link, color } = req.body;
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("events")
       .update({ title, description, icon, link, color })
       .eq("id", id)
@@ -1687,7 +1669,7 @@ app.put("/api/admin/events/:id", adminOnly, async (req, res) => {
 app.delete("/api/admin/events/:id", adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const { error } = await supabase
+    const { error } = await db
       .from("events")
       .delete()
       .eq("id", id);
@@ -1705,7 +1687,7 @@ app.delete("/api/admin/events/:id", adminOnly, async (req, res) => {
 // --- Admin Users Management ---
 app.get("/api/admin/users", adminOnly, async (req, res) => {
   try {
-    const { data: users, error } = await supabase
+    const { data: users, error } = await db
       .from("users")
       .select("*")
       .order("created_at", { ascending: false });
@@ -1713,7 +1695,7 @@ app.get("/api/admin/users", adminOnly, async (req, res) => {
     if (error) throw error;
 
     // Fetch server counts for each user
-    const { data: serverCounts } = await supabase
+    const { data: serverCounts } = await db
       .from("servers")
       .select("user_id");
 
@@ -1735,7 +1717,7 @@ app.get("/api/admin/users", adminOnly, async (req, res) => {
 app.get("/api/admin/users/:id/servers", adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const { data: servers, error } = await supabase
+    const { data: servers, error } = await db
       .from("servers")
       .select("*")
       .eq("user_id", id)
@@ -1754,7 +1736,7 @@ app.post("/api/admin/users/:id/ban", adminOnly, async (req, res) => {
     const { id } = req.params;
     const { banned } = req.body;
     
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("users")
       .update({ is_banned: banned })
       .eq("id", id)
@@ -1784,7 +1766,7 @@ app.post("/api/admin/servers/:id/feature", adminOnly, async (req, res) => {
       if (typeof featured === 'boolean') updates.featured = featured;
       if (typeof sponsored === 'boolean') updates.sponsored = sponsored;
   
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("servers")
         .update(updates)
         .eq("id", id)
@@ -1850,7 +1832,7 @@ app.get("/api/user/guilds", async (req, res) => {
 
     // ALWAYS Fetch registered servers to mark them (fresh status)
     try {
-        const { data: registeredServers } = await supabase
+        const { data: registeredServers } = await db
             .from("servers")
             .select("guild_id");
         
@@ -1891,7 +1873,7 @@ app.post("/api/servers", async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     
     // Check if user is banned
-    const { data: userData } = await supabase
+    const { data: userData } = await db
       .from("users")
       .select("is_banned")
       .eq("id", decoded.id)
@@ -1921,7 +1903,7 @@ app.post("/api/servers", async (req, res) => {
     // Check for Duplicates (if guildId is provided)
     if (newServer.guildId) {
         try {
-            const { data: existing, error: dupError } = await supabase
+            const { data: existing, error: dupError } = await db
                 .from("servers")
                 .select("id")
                 .eq("guild_id", newServer.guildId)
@@ -1997,7 +1979,7 @@ app.post("/api/servers", async (req, res) => {
     }
 
     // Insert into DB
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("servers")
       .insert([
         {
@@ -2058,7 +2040,7 @@ app.get("/api/user/servers", async (req, res) => {
   try {
     const user = jwt.verify(token, JWT_SECRET);
     
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("servers")
       .select("*")
       .eq("user_id", user.id)
@@ -2102,7 +2084,7 @@ app.put("/api/servers/:id", async (req, res) => {
     const updates = req.body;
 
     // Security Check: Ensure user owns the server
-    let fetchQuery = supabase
+    let fetchQuery = db
       .from("servers")
       .select("user_id, id, status, description, category, tags, banner_url, custom_slug, boost_reminder, auto_boost");
     
@@ -2143,7 +2125,7 @@ app.put("/api/servers/:id", async (req, res) => {
       }
 
       // 3. Uniqueness check
-      const { data: existing } = await supabase
+      const { data: existing } = await db
         .from("servers")
         .select("id, guild_id")
         .eq("custom_slug", slug)
@@ -2193,7 +2175,7 @@ app.put("/api/servers/:id", async (req, res) => {
       status: requiresReview ? 'pending' : server.status
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("servers")
       .update(allowedUpdates)
       .eq("id", server.id) // Use the UUID for internal update
@@ -2240,7 +2222,7 @@ app.delete("/api/servers/:id", async (req, res) => {
     const user = jwt.verify(token, JWT_SECRET);
 
     // Security Check
-    let fetchQuery = supabase.from("servers").select("user_id, name, category, id");
+    let fetchQuery = db.from("servers").select("user_id, name, category, id");
     
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
     const isGuildId = /^\d{17,20}$/.test(id);
@@ -2270,13 +2252,13 @@ app.delete("/api/servers/:id", async (req, res) => {
         return res.status(403).json({ error: "Unauthorized" });
     }
 
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await db
       .from("servers")
       .delete()
       .eq("id", server.id); // Use internal UUID for delete
 
     if (deleteError) {
-        console.error("Supabase delete failed:", deleteError);
+        console.error("db delete failed:", deleteError);
         throw deleteError;
     }
     
@@ -2337,7 +2319,7 @@ app.post("/api/reports", async (req, res) => {
     }
 
     // Fetch server details
-    const { data: server, error } = await supabase
+    const { data: server, error } = await db
       .from("servers")
       .select("name, invite_link, id")
       .eq("id", serverId)
@@ -2393,17 +2375,17 @@ app.get("/api/servers/:id/reviews", async (req, res) => {
 
     if (isGuildId) {
         // It's a Guild ID, find the UUID
-        const { data: server } = await supabase.from("servers").select("id").eq("guild_id", id).single();
+        const { data: server } = await db.from("servers").select("id").eq("guild_id", id).single();
         if (server) serverId = server.id;
         else return res.status(404).json({ error: "Servidor não encontrado" });
     } else if (!isUUID) {
         // It's a Slug, find the UUID
-        const { data: server } = await supabase.from("servers").select("id").eq("custom_slug", id.toLowerCase()).single();
+        const { data: server } = await db.from("servers").select("id").eq("custom_slug", id.toLowerCase()).single();
         if (server) serverId = server.id;
         else return res.status(404).json({ error: "Servidor não encontrado" });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("reviews")
       .select("*, user:users(username, avatar_url)")
       .eq("server_id", serverId)
@@ -2447,18 +2429,18 @@ app.post("/api/servers/:id/reviews", async (req, res) => {
     const isGuildId = /^\d{17,20}$/.test(id);
 
     if (isGuildId) {
-        const { data: server } = await supabase.from("servers").select("id").eq("guild_id", id).single();
+        const { data: server } = await db.from("servers").select("id").eq("guild_id", id).single();
         if (server) serverId = server.id;
         else return res.status(404).json({ error: "Servidor não encontrado" });
     } else if (!isUUID) {
         // It's a Slug, find the UUID
-        const { data: server } = await supabase.from("servers").select("id").eq("custom_slug", id.toLowerCase()).single();
+        const { data: server } = await db.from("servers").select("id").eq("custom_slug", id.toLowerCase()).single();
         if (server) serverId = server.id;
         else return res.status(404).json({ error: "Servidor não encontrado" });
     }
 
     // Check if already reviewed
-    const { data: existing } = await supabase
+    const { data: existing } = await db
         .from("reviews")
         .select("id")
         .eq("server_id", serverId)
@@ -2469,7 +2451,7 @@ app.post("/api/servers/:id/reviews", async (req, res) => {
         return res.status(400).json({ error: "Você já avaliou este servidor." });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("reviews")
       .insert([{
         server_id: serverId,
@@ -2500,7 +2482,7 @@ app.delete("/api/reviews/:id", async (req, res) => {
         const user = jwt.verify(token, JWT_SECRET);
         
         // Verify ownership or admin
-        const { data: review, error: fetchError } = await supabase
+        const { data: review, error: fetchError } = await db
             .from("reviews")
             .select("user_id")
             .eq("id", id)
@@ -2514,7 +2496,7 @@ app.delete("/api/reviews/:id", async (req, res) => {
             return res.status(403).json({ error: "Unauthorized" });
         }
         
-        const { error } = await supabase.from("reviews").delete().eq("id", id);
+        const { error } = await db.from("reviews").delete().eq("id", id);
         if (error) throw error;
         
         res.json({ success: true });
