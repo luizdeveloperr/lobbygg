@@ -1,21 +1,14 @@
 const fs = require("fs");
-const { execSync } = require("child_process");
-
-if (!fs.existsSync("./node_modules")) {
-  console.log("[📦] node_modules não encontrada, instalando dependências...");
-  execSync("npm install", { stdio: "inherit" });
-}
-
-if (!fs.existsSync("./dist")) {
-  console.log("[🔨] Executando build...");
-  execSync("npm run build", { stdio: "inherit" });
-}
 
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const path = require("path");
 const crypto = require("crypto");
+
+if (!fs.existsSync(path.join(__dirname, "../dist"))) {
+  console.warn("[⚠️] Pasta dist não encontrada. O frontend precisa ser buildado antes de iniciar em produção.");
+}
 
 // Fix for iconv-lite issue in some container environments
 try {
